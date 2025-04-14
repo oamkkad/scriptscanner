@@ -105,10 +105,10 @@ app.post('/scan', async (req, res) => {
     try {
         console.log('Launching browser...');
         const fs = require('fs');
-        const chromiumPath = '/usr/bin/chromium-browser';
+        const chromiumPath = '/usr/bin/chromium'; // Update this path based on your findings
 
         if (!fs.existsSync(chromiumPath)) {
-            return res.status(500).json({ error: 'Chromium binary not found at /usr/bin/chromium-browser' });
+            return res.status(500).json({ error: `Chromium binary not found at ${chromiumPath}` });
         }
 
         browser = await puppeteer.launch({
