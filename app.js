@@ -4,11 +4,21 @@ const puppeteer = require('puppeteer-core'); // Use puppeteer-core instead of pu
 require('dotenv').config();
 
 const app = express();
-const PORT = process.env.PORT || 3000; // Use the environment-provided port or fallback to 3000
+// Parse PORT as an integer, fallback to 3000 if invalid
+const rawPort = process.env.PORT;
+const PORT = !isNaN(parseInt(rawPort, 10)) ? parseInt(rawPort, 10) : 3000;
 
-console.log(`Raw PORT value: ${process.env.PORT}`);
+console.log(`Raw PORT value: ${rawPort}`);
 console.log(`Using port: ${PORT}`);
 console.log(`Is PORT numeric? ${!isNaN(PORT)}`);
+
+// Middleware to parse JSON requests
+app.use(bodyParser.json());
+
+// Root route: Serve a simple HTML form for user input
+app.get('/', (req, res) => {
+    res.send('<h1>App is running!</h1>');
+});
 
 // Start the server
 app.listen(PORT, '0.0.0.0', () => {
