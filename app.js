@@ -15,10 +15,7 @@ console.log(`Is PORT numeric? ${!isNaN(PORT)}`);
 // Middleware to parse JSON requests
 app.use(bodyParser.json());
 
-// Root route: Serve a simple HTML form for user input
-app.get('/', (req, res) => {
-    res.send('<h1>App is running!</h1>');
-});
+
 
 // Start the server
 app.listen(PORT, '0.0.0.0', () => {
