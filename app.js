@@ -4,23 +4,11 @@ const puppeteer = require('puppeteer-core'); // Use puppeteer-core instead of pu
 require('dotenv').config();
 
 const app = express();
-// Parse PORT as an integer, fallback to 3000 if invalid
-const rawPort = process.env.PORT;
-const PORT = !isNaN(parseInt(rawPort, 10)) ? parseInt(rawPort, 10) : 3000;
+const PORT = parseInt(process.env.PORT, 10) || 3000; // Parse PORT as an integer, fallback to 3000 if invalid
 
-console.log(`Raw PORT value: ${rawPort}`);
+console.log(`Raw PORT value: ${process.env.PORT}`);
 console.log(`Using port: ${PORT}`);
 console.log(`Is PORT numeric? ${!isNaN(PORT)}`);
-
-// Middleware to parse JSON requests
-app.use(bodyParser.json());
-
-
-
-// Start the server
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server is running on http://0.0.0.0:${PORT}`);
-});
 
 // Middleware to parse JSON requests
 app.use(bodyParser.json());
@@ -100,54 +88,61 @@ app.get('/', (req, res) => {
     `);
 });
 
+// Health check endpoint for Render
+app.get('/health', (req, res) => {
+    res.status(200).send('OK');
+});
+
 // API endpoint to scan scripts on a given URL
 app.post('/scan', async (req, res) => {
     const { url } = req.body;
 
-    if (!url) {
-        return res.status(400).json({ error: 'URL is required' });
+    if (!url || !/^https?:\/\//.test(url)) {
+        return res.status(400).json({ error: 'Please provide a valid URL starting with http:// or https://' });
     }
 
     let browser;
     try {
-        // Verify the Chromium binary exists
+        console.log('Launching browser...');
         const fs = require('fs');
         const chromiumPath = '/usr/bin/chromium-browser';
+
         if (!fs.existsSync(chromiumPath)) {
             return res.status(500).json({ error: 'Chromium binary not found at /usr/bin/chromium-browser' });
         }
 
-        console.log('Launching browser...');
         browser = await puppeteer.launch({
-            executablePath: chromiumPath, // Path to Chromium on Render
-            args: ['--no-sandbox', '--disable-setuid-sandbox'] // Required for security in containerized environments
+            executablePath: chromiumPath,
+            args: ['--no-sandbox', '--disable-setuid-sandbox']
         });
+        console.log('Browser launched successfully.');
 
         console.log('Opening new page...');
         const page = await browser.newPage();
+        console.log('New page opened.');
 
         // Set custom User-Agent to bypass bot detection
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36');
 
         console.log(`Navigating to ${url}...`);
-        await page.goto(url, { waitUntil: 'networkidle2' });
+        await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 }); // Increase timeout to 60 seconds
+        console.log('Navigation complete.');
 
         console.log('Extracting scripts...');
         const scripts = await page.evaluate(() => {
-            return Array.from(document.querySelectorAll('script'), script => {
-                return {
-                    src: script.src || 'Inline Script',
-                    type: script.type || 'text/javascript',
-                    async: script.async || false,
-                    defer: script.defer || false
-                };
-            });
+            return Array.from(document.querySelectorAll('script'), script => ({
+                src: script.src || 'Inline Script',
+                type: script.type || 'text/javascript',
+                async: script.async || false,
+                defer: script.defer || false
+            }));
         });
+        console.log('Scripts extracted successfully.');
 
         console.log('Closing browser...');
         await browser.close();
+        console.log('Browser closed.');
 
-        // Return the results
         res.json({ scripts });
     } catch (error) {
         console.error('An error occurred:', error);
@@ -188,7 +183,7 @@ app.post('/export', (req, res) => {
     res.send(textContent);
 });
 
-// Start the server (only one call to app.listen)
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+// Start the server
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server is running on http://0.0.0.0:${PORT}`);
 });
