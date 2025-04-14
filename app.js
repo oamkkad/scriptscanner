@@ -1,15 +1,17 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const puppeteer = require('puppeteer');
-
+const puppeteer = require('puppeteer-core'); // Use puppeteer-core instead of puppeteer
+require('dotenv').config();
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000; // Use the environment-provided port or fallback to 3000
+
+console.log(`Using port: ${PORT}`); // Log the port being used
 
 // Middleware to parse JSON requests
 app.use(bodyParser.json());
 
-// Serve a simple HTML form for user input
+// Root route: Serve a simple HTML form for user input
 app.get('/', (req, res) => {
     res.send(`
         <h1>Script Scanner</h1>
@@ -94,25 +96,28 @@ app.post('/scan', async (req, res) => {
 
     let browser;
     try {
-        // Launch Puppeteer browser
+        // Verify the Chromium binary exists
+        const fs = require('fs');
+        const chromiumPath = '/usr/bin/chromium-browser';
+        if (!fs.existsSync(chromiumPath)) {
+            return res.status(500).json({ error: 'Chromium binary not found at /usr/bin/chromium-browser' });
+        }
+
         console.log('Launching browser...');
         browser = await puppeteer.launch({
-            headless: true,
-            args: ['--no-sandbox', '--disable-setuid-sandbox'] // Add these arguments for better compatibility
+            executablePath: chromiumPath, // Path to Chromium on Render
+            args: ['--no-sandbox', '--disable-setuid-sandbox'] // Required for security in containerized environments
         });
 
-        // Open a new page
         console.log('Opening new page...');
         const page = await browser.newPage();
 
         // Set custom User-Agent to bypass bot detection
         await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36');
 
-        // Navigate to the target URL
         console.log(`Navigating to ${url}...`);
         await page.goto(url, { waitUntil: 'networkidle2' });
 
-        // Extract all script sources
         console.log('Extracting scripts...');
         const scripts = await page.evaluate(() => {
             return Array.from(document.querySelectorAll('script'), script => {
@@ -125,7 +130,6 @@ app.post('/scan', async (req, res) => {
             });
         });
 
-        // Close the browser
         console.log('Closing browser...');
         await browser.close();
 
@@ -136,12 +140,12 @@ app.post('/scan', async (req, res) => {
         res.status(500).json({ error: error.message });
     } finally {
         if (browser) {
-            await browser.close();
+            await browser.close().catch(err => console.error('Failed to close browser:', err));
         }
     }
 });
 
-// Export scripts as a text or CSV file
+// Export scripts as a text file
 app.post('/export', (req, res) => {
     const { scripts } = req.body;
 
@@ -170,7 +174,7 @@ app.post('/export', (req, res) => {
     res.send(textContent);
 });
 
-// Start the server
+// Start the server (only one call to app.listen)
 app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });
