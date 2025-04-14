@@ -7,6 +7,10 @@ const app = express();
 const PORT = process.env.PORT || 3000; // Use the environment-provided port or fallback to 3000
 
 console.log(`Using port: ${PORT}`); // Log the port being used
+// Start the server
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
 
 // Middleware to parse JSON requests
 app.use(bodyParser.json());
