@@ -6,7 +6,10 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000; // Use the environment-provided port or fallback to 3000
 
-console.log(`Using port: ${PORT}`); // Log the port being used
+console.log(`Raw PORT value: ${process.env.PORT}`);
+console.log(`Using port: ${PORT}`);
+console.log(`Is PORT numeric? ${!isNaN(PORT)}`);
+
 // Start the server
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on http://0.0.0.0:${PORT}`);
